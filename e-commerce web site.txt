@@ -1,0 +1,345 @@
+import React, { useState, useEffect } from "react";
+
+
+
+export default function ECommerceApp() {
+
+  const sampleProducts = [
+    {
+      id: "p1",
+      title: "Classic Leather Jacket",
+      price: 129.99,
+      rating: 4.6,
+      category: "Apparel",
+      image: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&q=80&auto=format&fit=crop",
+      description: "Premium leather jacket with a comfortable fit and timeless style.",
+      stock: 5,
+    },
+    {
+      id: "p2",
+      title: "Wireless Headphones",
+      price: 59.99,
+      rating: 4.3,
+      category: "Electronics",
+      image: "https://images.unsplash.com/photo-1518444021620-8e8f4f8e9d2e?w=800&q=80&auto=format&fit=crop",
+      description: "High-quality sound and noise isolation for music lovers on the go.",
+      stock: 12,
+    },
+    {
+      id: "p3",
+      title: "Ceramic Coffee Mug",
+      price: 12.5,
+      rating: 4.8,
+      category: "Home",
+      image: "https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?w=800&q=80&auto=format&fit=crop",
+      description: "Microwave-safe ceramic mug with a comfortable handle.",
+      stock: 30,
+    },
+    {
+      id: "p4",
+      title: "Running Shoes",
+      price: 79.99,
+      rating: 4.4,
+      category: "Footwear",
+      image: "https://images.unsplash.com/photo-1600180758890-9f91ca3f5b5c?w=800&q=80&auto=format&fit=crop",
+      description: "Lightweight running shoes with breathable mesh and cushioned sole.",
+      stock: 8,
+    },
+    {
+      id: "p5",
+      title: "Desk Plant - Snake Plant",
+      price: 18.0,
+      rating: 4.7,
+      category: "Home",
+      image: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&q=80&auto=format&fit=crop",
+      description: "Low-maintenance indoor plant to brighten your workspace.",
+      stock: 20,
+    },
+  ];
+
+  // State
+  const [products] = useState(sampleProducts);
+  const [query, setQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("featured");
+  const [cart, setCart] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("demo_cart")) || {};
+    } catch (e) {
+      return {};
+    }
+  });
+  const [showCart, setShowCart] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [checkoutMessage, setCheckoutMessage] = useState("");
+
+  useEffect(() => {
+    localStorage.setItem("demo_cart", JSON.stringify(cart));
+  }, [cart]);
+
+  // Helpers
+  function addToCart(product, qty = 1) {
+    setCart((prev) => {
+      const curQty = prev[product.id]?.qty || 0;
+      const newQty = Math.min(curQty + qty, product.stock);
+      return {
+        ...prev,
+        [product.id]: { product, qty: newQty },
+      };
+    });
+  }
+
+  function removeFromCart(productId) {
+    setCart((prev) => {
+      const copy = { ...prev };
+      delete copy[productId];
+      return copy;
+    });
+  }
+
+  function updateQty(productId, qty) {
+    setCart((prev) => {
+      const p = prev[productId];
+      if (!p) return prev;
+      const newQty = Math.max(0, Math.min(qty, p.product.stock));
+      if (newQty === 0) {
+        const copy = { ...prev };
+        delete copy[productId];
+        return copy;
+      }
+      return { ...prev, [productId]: { ...p, qty: newQty } };
+    });
+  }
+
+  function clearCart() {
+    setCart({});
+  }
+
+  function cartTotals() {
+    const items = Object.values(cart);
+    const subtotal = items.reduce((s, it) => s + it.product.price * it.qty, 0);
+    const shipping = subtotal > 0 ? 4.99 : 0;
+    const tax = subtotal * 0.12;
+    const total = subtotal + shipping + tax;
+    return { subtotal, shipping, tax, total };
+  }
+
+  function handleCheckout() {
+    // Demo checkout: pretend to process payment
+    const totals = cartTotals();
+    if (totals.subtotal === 0) {
+      setCheckoutMessage("Your cart is empty — add something first.");
+      return;
+    }
+
+    // Very simple validation and "processing"
+    setCheckoutMessage("Processing payment...");
+    setTimeout(() => {
+      setCheckoutMessage(
+        `Thanks! Payment of ₹${totals.total.toFixed(2)} received. Order #${Math.floor(
+          Math.random() * 900000 + 100000
+        )} placed.`
+      );
+      clearCart();
+      setShowCart(false);
+    }, 1000);
+  }
+
+  // Derived products after search/filter/sort
+  const categories = ["All", ...Array.from(new Set(products.map((p) => p.category)))];
+  let visible = products.filter((p) => {
+    const inQuery = p.title.toLowerCase().includes(query.toLowerCase()) || p.description.toLowerCase().includes(query.toLowerCase());
+    const inCategory = categoryFilter === "All" ? true : p.category === categoryFilter;
+    return inQuery && inCategory;
+  });
+
+  if (sortBy === "price_asc") visible.sort((a, b) => a.price - b.price);
+  if (sortBy === "price_desc") visible.sort((a, b) => b.price - a.price);
+  if (sortBy === "rating") visible.sort((a, b) => b.rating - a.rating);
+
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-900">
+      <header className="bg-white shadow">
+        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+          <h1 className="text-2xl font-extrabold">Shoply</h1>
+          <div className="flex-1 mx-6">
+            <div className="relative">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search products..."
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowCart((s) => !s)}
+              className="relative inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium"
+            >
+              Cart
+              <span className="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs">
+                {Object.keys(cart).length}
+              </span>
+            </button>
+            <button className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white" onClick={() => {setQuery(""); setCategoryFilter("All"); setSortBy("featured")}}>
+              Reset
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl px-4 py-8">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Filters column */}
+          <aside className="w-full lg:w-64">
+            <div className="sticky top-6 space-y-4">
+              <div className="rounded-lg border bg-white p-4">
+                <h3 className="font-semibold mb-2">Category</h3>
+                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full rounded border px-2 py-2 text-sm">
+                  {categories.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="rounded-lg border bg-white p-4">
+                <h3 className="font-semibold mb-2">Sort</h3>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="w-full rounded border px-2 py-2 text-sm">
+                  <option value="featured">Featured</option>
+                  <option value="price_asc">Price: Low → High</option>
+                  <option value="price_desc">Price: High → Low</option>
+                  <option value="rating">Top Rated</option>
+                </select>
+              </div>
+
+              <div className="rounded-lg border bg-white p-4">
+                <h3 className="font-semibold mb-2">Quick Tips</h3>
+                <ul className="text-sm space-y-1">
+                  <li>Use the search box to find items fast.</li>
+                  <li>Click a product to view details.</li>
+                  <li>Cart persists in localStorage for this demo.</li>
+                </ul>
+              </div>
+            </div>
+          </aside>
+
+          {/* Product grid */}
+          <section className="flex-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {visible.map((p) => (
+                <article key={p.id} className="rounded-lg border bg-white overflow-hidden shadow-sm">
+                  <div className="h-48 w-full overflow-hidden">
+                    <img src={p.image} alt={p.title} className="h-full w-full object-cover transform hover:scale-105 transition" />
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-semibold">{p.title}</h3>
+                    <p className="text-sm text-gray-600 mt-1">{p.category} • ⭐ {p.rating}</p>
+                    <div className="mt-3 flex items-center justify-between">
+                      <div>
+                        <div className="text-lg font-bold">₹{p.price.toFixed(2)}</div>
+                        <div className="text-xs text-gray-500">{p.stock} left</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => { addToCart(p, 1); }} className="rounded-md border px-3 py-2 text-sm">Add</button>
+                        <button onClick={() => setSelectedProduct(p)} className="rounded-md bg-gray-100 px-3 py-2 text-sm">Details</button>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {visible.length === 0 && (
+              <div className="mt-8 rounded-lg border bg-white p-6 text-center">
+                <p className="text-gray-600">No products found. Try clearing filters or searching something else.</p>
+              </div>
+            )}
+          </section>
+        </div>
+      </main>
+
+      {/* Cart drawer */}
+      <div className={`fixed right-0 top-0 h-full w-full sm:w-96 transform ${showCart ? "translate-x-0" : "translate-x-full"} transition-transform duration-300 z-40`}>
+        <div className="h-full bg-white shadow-lg flex flex-col">
+          <div className="p-4 border-b flex items-center justify-between">
+            <h4 className="font-bold">Your Cart</h4>
+            <div className="flex items-center gap-2">
+              <button onClick={() => { clearCart(); setCheckoutMessage(""); }} className="text-sm">Clear</button>
+              <button onClick={() => setShowCart(false)} className="text-sm">Close</button>
+            </div>
+          </div>
+
+          <div className="p-4 flex-1 overflow-auto">
+            {Object.keys(cart).length === 0 ? (
+              <div className="text-center text-gray-600">Your cart is empty.</div>
+            ) : (
+              <div className="space-y-4">
+                {Object.values(cart).map((it) => (
+                  <div key={it.product.id} className="flex items-center gap-3 border rounded p-2">
+                    <img src={it.product.image} className="h-16 w-16 object-cover rounded" alt="" />
+                    <div className="flex-1">
+                      <div className="font-medium">{it.product.title}</div>
+                      <div className="text-sm text-gray-500">₹{it.product.price.toFixed(2)}</div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <button onClick={() => updateQty(it.product.id, it.qty - 1)} className="rounded border px-2">-</button>
+                        <input type="number" value={it.qty} onChange={(e) => updateQty(it.product.id, Number(e.target.value))} className="w-16 rounded border px-2 py-1 text-sm" />
+                        <button onClick={() => updateQty(it.product.id, it.qty + 1)} className="rounded border px-2">+</button>
+                        <button onClick={() => removeFromCart(it.product.id)} className="ml-auto text-sm text-red-600">Remove</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="p-4 border-t bg-gray-50">
+            <div className="space-y-2">
+              <div className="flex justify-between"><span>Subtotal</span><span>₹{cartTotals().subtotal.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span>Shipping</span><span>₹{cartTotals().shipping.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span>Tax</span><span>₹{cartTotals().tax.toFixed(2)}</span></div>
+              <div className="flex justify-between font-bold text-lg"><span>Total</span><span>₹{cartTotals().total.toFixed(2)}</span></div>
+
+              <div className="mt-3 flex gap-2">
+                <button onClick={handleCheckout} className="flex-1 rounded bg-green-600 px-4 py-2 text-white">Checkout</button>
+                <button onClick={() => { setShowCart(false); setCheckoutMessage(""); }} className="rounded border px-4 py-2">Continue</button>
+              </div>
+
+              {checkoutMessage && <div className="mt-2 text-sm text-gray-700">{checkoutMessage}</div>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Product details modal */}
+      {selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setSelectedProduct(null)} />
+          <div className="relative max-w-3xl w-full bg-white rounded-lg overflow-hidden shadow-lg">
+            <div className="grid grid-cols-1 md:grid-cols-2">
+              <div className="h-72 md:h-auto">
+                <img src={selectedProduct.image} alt="" className="h-full w-full object-cover" />
+              </div>
+              <div className="p-6">
+                <h2 className="text-2xl font-bold">{selectedProduct.title}</h2>
+                <p className="mt-2 text-sm text-gray-600">{selectedProduct.category} • ⭐ {selectedProduct.rating}</p>
+                <p className="mt-4 text-gray-700">{selectedProduct.description}</p>
+                <div className="mt-4 text-xl font-bold">₹{selectedProduct.price.toFixed(2)}</div>
+                <div className="mt-4 flex items-center gap-2">
+                  <button onClick={() => addToCart(selectedProduct, 1)} className="rounded bg-blue-600 px-4 py-2 text-white">Add to cart</button>
+                  <button onClick={() => setSelectedProduct(null)} className="rounded border px-4 py-2">Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <footer className="mt-12 bg-white border-t">
+        <div className="mx-auto max-w-6xl px-4 py-6 text-sm text-gray-600">© {new Date().getFullYear()} Shoply — Demo e‑commerce UI</div>
+      </footer>
+    </div>
+  );
+}
